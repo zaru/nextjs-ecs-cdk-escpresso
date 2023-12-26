@@ -1,36 +1,48 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Next.jsをAWS CDKとecspressoでデプロイするサンプル
 
-## Getting Started
+## 手順
 
-First, run the development server:
+### AWSプロファイルを設定する
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+$ export AWS_PROFILE=your-profile
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### AWS CDKでECSクラスターを作成する
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+$ cd cdk
+$ npm install
+$ npx cdk deploy NextJs-develop
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+- `NextJs-develop`
+  以外にステージング・プロダクション用のスタックがある（ `./bin/cdk.ts` を参照）
+- CDKではECSのクラスタまでを管理、サービスとタスクはecspressoに任せる
 
-## Learn More
+### コンテナイメージを作成し、ECRにpushする
 
-To learn more about Next.js, take a look at the following resources:
+- 運用時ではCIでビルドするが、初回は手動でビルドする
+- ECRのリポジトリ名は自動で生成されるので、コンソールもしくはCLIで確認する
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# ECRのURIを取得
+$ aws ssm get-parameter --name /ecs/next-js-cdk/ecr-repository-name | jq .Parameter.Value
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+```bash
+# Apple Siliconの場合は --platform linux/x86_64 を付ける
+$ docker build -t nextjs-aws-cdk-ecspresso -f ./.ecs/app/Dockerfile .
 
-## Deploy on Vercel
+# AWS ECRログインとタグ付けとpush
+$ aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin xxxx.dkr.ecr.ap-northeast-1.amazonaws.com
+$ docker tag nextjs-aws-cdk-ecspresso:latest xxxx.dkr.ecr.ap-northeast-1.amazonaws.com/<リポジトリ名>:latest
+$ docker push xxxx.dkr.ecr.ap-northeast-1.amazonaws.com/<リポジトリ名>:latest
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### ecspressoでECSサービスとタスクを作成しデプロイ
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+```bash
+$ ecspresso verify
+$ ecspresso deploy
+```
