@@ -1,4 +1,9 @@
-import { RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
+import {
+	Duration,
+	Stack,
+	StackProps,
+	aws_route53_targets as targets,
+} from "aws-cdk-lib";
 import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
@@ -8,14 +13,42 @@ import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
 import { Cluster } from "aws-cdk-lib/aws-ecs";
 import { Repository } from "aws-cdk-lib/aws-ecr";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
 
 export class NextJsStack extends Stack {
 	constructor(scope: Construct, id: string, props?: StackProps) {
 		super(scope, id, props);
 
+		// cdk.jsonで定義した環境ごとの定数を参照
+		const envKey = scope.node.tryGetContext("environment");
+		const envValues = scope.node.tryGetContext(envKey) as {
+			[key: string]: string;
+		};
+
 		// VPC
 		const vpc = new Vpc(this, "Vpc", { maxAzs: 3 });
 		const subnetIdList = vpc.privateSubnets.map((obj) => obj.subnetId);
+
+		// Route53 + ACMで証明書管理
+		// 既存のRoute53ホストゾーンを使う場合はこちらでhostedZoneIdを指定する
+		const hostedZone = route53.HostedZone.fromHostedZoneAttributes(
+			this,
+			"hostedzone",
+			{
+				hostedZoneId: envValues.hostedZoneId,
+				zoneName: envValues.zoneName,
+			},
+		);
+		// 新規でRoute53ホストゾーンを作成する場合はこちら
+		// const hostedZone = new route53.HostedZone(this, "HostedZone", {
+		// 	zoneName: "dev.gvatech-sso.com",
+		// });
+		const certificate = new acm.Certificate(this, "Certificate", {
+			domainName: envValues.domainName,
+			certificateName: "Next.js CDK Sample",
+			validation: acm.CertificateValidation.fromDns(hostedZone),
+		});
 
 		// セキュリティグループ
 		const albSg = new ec2.SecurityGroup(this, "AlbSg", {
@@ -23,6 +56,7 @@ export class NextJsStack extends Stack {
 			allowAllOutbound: true,
 		});
 		albSg.addIngressRule(ec2.Peer.ipv4("0.0.0.0/0"), ec2.Port.tcp(80));
+		albSg.addIngressRule(ec2.Peer.ipv4("0.0.0.0/0"), ec2.Port.tcp(443));
 
 		const containerSg = new ec2.SecurityGroup(this, "ContainerSg", { vpc });
 		albSg.connections.allowTo(containerSg, ec2.Port.tcp(3000));
@@ -39,6 +73,15 @@ export class NextJsStack extends Stack {
 			targetType: elbv2.TargetType.IP,
 			port: 3000,
 			protocol: elbv2.ApplicationProtocol.HTTP,
+			// ヘルスチェックをカスタマイズする
+			healthCheck: {
+				path: "/api/health",
+				healthyHttpCodes: "200",
+				healthyThresholdCount: 2,
+				unhealthyThresholdCount: 2,
+				interval: Duration.seconds(10),
+				timeout: Duration.seconds(5),
+			},
 			vpc,
 		});
 
@@ -47,6 +90,21 @@ export class NextJsStack extends Stack {
 			defaultTargetGroups: [containerTg],
 			open: true,
 			port: 80,
+		});
+		alb.addListener("Listener-HTTPS", {
+			defaultTargetGroups: [containerTg],
+			open: true,
+			port: 443,
+			certificates: [certificate],
+		});
+
+		// ALBをRoute53に登録
+		new route53.ARecord(this, "EcsAlbRecord", {
+			zone: hostedZone,
+			recordName: envValues.domainName,
+			target: route53.RecordTarget.fromAlias(
+				new targets.LoadBalancerTarget(alb),
+			),
 		});
 
 		// ECSクラスタ

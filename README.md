@@ -1,5 +1,11 @@
 # Next.jsをAWS CDKとecspressoでデプロイするサンプル
 
+## 概要
+
+- AWS CDKでECSクラスタを管理
+- ECSサービスとタスクはecspressoで管理
+- ACMは手動で管理し、CDKで管理する
+
 ## 手順
 
 ### AWSプロファイルを設定する
@@ -13,10 +19,10 @@ $ export AWS_PROFILE=your-profile
 ```bash
 $ cd cdk
 $ npm install
-$ npx cdk deploy NextJs-develop
+$ npx cdk diff -c environment=develop
 ```
 
-- `NextJs-develop`
+- `develop`
   以外にステージング・プロダクション用のスタックがある（ `./bin/cdk.ts` を参照）
 - CDKではECSのクラスタまでを管理、サービスとタスクはecspressoに任せる
 
@@ -31,13 +37,15 @@ $ aws ssm get-parameter --name /ecs/next-js-cdk/ecr-repository-name | jq .Parame
 ```
 
 ```bash
-# Apple Siliconの場合は --platform linux/x86_64 を付ける
-$ docker build -t nextjs-aws-cdk-ecspresso -f ./.ecs/app/Dockerfile .
+# コンテナ名をAWSパラメータストアから取得
+$ export IMAGE_NAME=$(aws ssm get-parameter --name /ecs/next-js-cdk/ecr-repository-name | jq -r '.Parameter.Value|split("/")[-1]')
+$ docker build -t $IMAGE_NAME -f ./.ecs/app/Dockerfile . # Apple Siliconの場合は --platform linux/x86_64 を付ける
 
 # AWS ECRログインとタグ付けとpush
-$ aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin xxxx.dkr.ecr.ap-northeast-1.amazonaws.com
-$ docker tag nextjs-aws-cdk-ecspresso:latest xxxx.dkr.ecr.ap-northeast-1.amazonaws.com/<リポジトリ名>:latest
-$ docker push xxxx.dkr.ecr.ap-northeast-1.amazonaws.com/<リポジトリ名>:latest
+$ export REPO_NAME=$(aws ssm get-parameter --name /ecs/next-js-cdk/ecr-repository-name | jq -r '.Parameter.Value|split("/")[0]')
+$ aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin $REPO_NAME
+$ docker tag $IMAGE_NAME:latest $REPO_NAME/$IMAGE_NAME:latest
+$ docker push $REPO_NAME/$IMAGE_NAME:latest
 ```
 
 ### ecspressoでECSサービスとタスクを作成しデプロイ
@@ -46,3 +54,9 @@ $ docker push xxxx.dkr.ecr.ap-northeast-1.amazonaws.com/<リポジトリ名>:lat
 $ ecspresso verify
 $ ecspresso deploy
 ```
+
+## TODO
+
+- [ ] GitHub Actions
+- [ ] ヘルスチェックのカスタマイズ
+- [ ] 秘匿情報をSSMに設定する
