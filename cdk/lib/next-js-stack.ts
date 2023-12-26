@@ -1,5 +1,5 @@
 import { RemovalPolicy, Stack, StackProps } from "aws-cdk-lib";
-import { Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
 import { Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -23,6 +23,9 @@ export class NextJsStack extends Stack {
 			allowAllOutbound: true,
 		});
 		albSg.addIngressRule(ec2.Peer.ipv4("0.0.0.0/0"), ec2.Port.tcp(80));
+
+		const containerSg = new ec2.SecurityGroup(this, "ContainerSg", { vpc });
+		albSg.connections.allowTo(containerSg, ec2.Port.tcp(3000));
 
 		// ALB
 		const alb = new elbv2.ApplicationLoadBalancer(this, "Alb", {
@@ -92,6 +95,10 @@ export class NextJsStack extends Stack {
 				stringValue: subnetIdList[i],
 			});
 		}
+		new ssm.StringParameter(this, "ContainerSgParam", {
+			parameterName: "/ecs/next-js-cdk/sg-id",
+			stringValue: containerSg.securityGroupId,
+		});
 		new ssm.StringParameter(this, "ContainerTgParam", {
 			parameterName: "/ecs/next-js-cdk/tg-arn",
 			stringValue: containerTg.targetGroupArn,
