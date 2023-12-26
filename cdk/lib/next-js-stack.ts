@@ -107,5 +107,9 @@ export class NextJsStack extends Stack {
 			parameterName: "/ecs/next-js-cdk/log-group-name",
 			stringValue: logGroup.logGroupName,
 		});
+		new ssm.StringParameter(this, "EcrRepositoryName", {
+			parameterName: "/ecs/next-js-cdk/ecr-repository-name",
+			stringValue: repository.repositoryUri,
+		});
 	}
 }

@@ -2,7 +2,7 @@
 	"containerDefinitions": [
 		{
 			"name": "nextjs",
-			"image": "826204725037.dkr.ecr.ap-northeast-1.amazonaws.com/nextjs-develop-repository22e53bbd-sko2jndt10kg:latest",
+			"image": "{{ ssm `/ecs/next-js-cdk/ecr-repository-name` }}:latest",
 			"environment": [
 				{
 					"name": "AWS_REGION",
