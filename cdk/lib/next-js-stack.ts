@@ -60,6 +60,11 @@ export class NextJsStack extends Stack {
 		// タスク実行ロール
 		const taskExecRole = new Role(this, "TaskExecRole", {
 			assumedBy: new ServicePrincipal("ecs-tasks.amazonaws.com"),
+			managedPolicies: [
+				ManagedPolicy.fromAwsManagedPolicyName(
+					"AmazonEC2ContainerRegistryReadOnly",
+				),
+			],
 		});
 
 		// ロググループ
