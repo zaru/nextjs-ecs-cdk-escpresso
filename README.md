@@ -30,7 +30,7 @@ $ export AWS_PROFILE=your-profile
 ```bash
 $ cd cdk
 $ npm install
-$ npx cdk diff -c environment=develop
+$ npx cdk deploy -c environment=develop
 ```
 
 - `develop`
