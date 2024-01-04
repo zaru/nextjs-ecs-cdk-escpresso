@@ -4,7 +4,7 @@ import {
   StackProps,
   aws_route53_targets as targets,
 } from "aws-cdk-lib";
-import { ManagedPolicy, Role, ServicePrincipal } from "aws-cdk-lib/aws-iam";
+import {ManagedPolicy, PolicyDocument, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
 import { Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -126,6 +126,18 @@ export class NextJsStack extends Stack {
           "AmazonEC2ContainerRegistryReadOnly",
         ),
       ],
+      inlinePolicies: {
+        inlinePolicies: PolicyDocument.fromJson({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Effect: "Allow",
+              Action: "secretsmanager:GetSecretValue",
+              Resource: ["*"],
+            },
+          ],
+        }),
+      },
     });
 
     // ロググループ
