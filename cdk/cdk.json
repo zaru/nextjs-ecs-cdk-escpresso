@@ -18,17 +18,20 @@
     "develop": {
       "zoneName": "develop.example.com",
       "hostedZoneId": "in your Route53 hosted zone id",
-      "domainName": "nextjs.develop.example.com"
+      "domainName": "nextjs.develop.example.com",
+      "githubOidcRepo": "repo:ORG-NAME/REPO-NAME:*"
     },
     "staging": {
       "zoneName": "staging.example.com",
       "hostedZoneId": "in your Route53 hosted zone id",
-      "domainName": "nextjs.staging.example.com"
+      "domainName": "nextjs.staging.example.com",
+      "githubOidcRepo": "repo:ORG-NAME/REPO-NAME:*"
     },
     "production": {
       "zoneName": "production.example.com",
       "hostedZoneId": "in your Route53 hosted zone id",
-      "domainName": "nextjs.production.example.com"
+      "domainName": "nextjs.production.example.com",
+      "githubOidcRepo": "repo:ORG-NAME/REPO-NAME:*"
     },
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,

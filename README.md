@@ -68,6 +68,4 @@ $ ecspresso deploy
 
 ## TODO
 
-- [ ] GitHub Actions
-- [ ] ヘルスチェックのカスタマイズ
 - [ ] 秘匿情報をSSMに設定する

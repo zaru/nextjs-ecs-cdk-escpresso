@@ -2,9 +2,9 @@ import {
   Duration,
   Stack,
   StackProps,
-  aws_route53_targets as targets,
+  aws_route53_targets as targets, RemovalPolicy,
 } from "aws-cdk-lib";
-import {ManagedPolicy, PolicyDocument, Role, ServicePrincipal} from "aws-cdk-lib/aws-iam";
+import {FederatedPrincipal, ManagedPolicy, PolicyDocument, Role, ServicePrincipal, OpenIdConnectProvider} from "aws-cdk-lib/aws-iam";
 import { Vpc } from "aws-cdk-lib/aws-ec2";
 import { Construct } from "constructs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -144,7 +144,9 @@ export class NextJsStack extends Stack {
     const logGroup = new LogGroup(this, "logGroup", {});
 
     // ECR
-    const repository = new Repository(this, "Repository", {});
+    const repository = new Repository(this, "Repository", {
+      removalPolicy: RemovalPolicy.DESTROY
+    });
 
     // タスク実行ロールに権限付与
     repository.grantPull(taskExecRole);
@@ -180,6 +182,62 @@ export class NextJsStack extends Stack {
     new ssm.StringParameter(this, "EcrRepositoryName", {
       parameterName: "/ecs/next-js-cdk/ecr-repository-name",
       stringValue: repository.repositoryUri,
+    });
+
+    // GitHub ActionsからAWSへアクセスできるOIDCとロールを作成
+    const gitHubIdProvider = new OpenIdConnectProvider(
+      this,
+      "GitHubIdProvider",
+      {
+        url: "https://token.actions.githubusercontent.com",
+        clientIds: ["sts.amazonaws.com"],
+      },
+    );
+    new Role(this, "GitHubActionsOidcRole", {
+      roleName: "github-actions-oidc-role",
+      assumedBy: new FederatedPrincipal(
+        gitHubIdProvider.openIdConnectProviderArn,
+        {
+          StringLike: {
+            "token.actions.githubusercontent.com:sub": envValues.githubOidcRepo,
+          },
+        },
+        "sts:AssumeRoleWithWebIdentity",
+      ),
+      inlinePolicies: {
+        inlinePolicies: PolicyDocument.fromJson({
+          Version: "2012-10-17",
+          Statement: [
+            {
+              Sid: "PushImageOnly",
+              Effect: "Allow",
+              Action: [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart",
+                "ecr:CompleteLayerUpload",
+                "ecr:PutImage",
+              ],
+              Resource: "*",
+            },
+            {
+              Sid: "GetSecrets",
+              Effect: "Allow",
+              Action: [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              Resource: "*",
+            },
+            {
+              Sid: "GetSSMParameters",
+              Effect: "Allow",
+              Action: ["ssm:GetParameter*"],
+              Resource: "*",
+            },
+          ],
+        }),
+      },
     });
   }
 }

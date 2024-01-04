@@ -1,0 +1,51 @@
+name: Next.js Build
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  next_build:
+    runs-on: ubuntu-latest
+    environment: development
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/github-actions-oidc-role
+          aws-region: ap-northeast-1
+
+      - name: Get secrets from AWS Secrets Manager
+        id: get-aws-secret
+        uses: aws-actions/aws-secretsmanager-get-secrets@v1
+        with:
+          secret-ids: |
+            FROM_SECRETSMANAGER,dev/proto-gva-account-control
+          parse-json-secrets: false
+
+      - name: setup-node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/cache@v3
+        id: cache-npm
+        with:
+          path: '**/node_modules'
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('**/package-lock.json') }}
+      - name: Install packages
+        if: ${{ steps.cache-npm.outputs.cache-hit != 'true' }}
+        run: |
+          npm install
+      - name: App Build
+        env:
+          FROM_SECRETSMANAGER: ${{ env.FROM_SECRETSMANAGER }}
+        run: npm run build

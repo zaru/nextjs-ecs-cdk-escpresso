@@ -1,0 +1,19 @@
+name: Biome
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  biome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Biome
+        run: |
+          npm install --save-exact @biomejs/biome
+
+      - name: Biome format
+        run: npx @biomejs/biome format ./src
