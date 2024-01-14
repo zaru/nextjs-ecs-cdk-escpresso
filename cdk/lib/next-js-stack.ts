@@ -15,6 +15,7 @@ import { Repository } from "aws-cdk-lib/aws-ecr";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import * as route53 from "aws-cdk-lib/aws-route53";
 import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as ses from "aws-cdk-lib/aws-ses";
 
 export class NextJsStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -42,7 +43,7 @@ export class NextJsStack extends Stack {
     );
     // 新規でRoute53ホストゾーンを作成する場合はこちら
     // const hostedZone = new route53.HostedZone(this, "HostedZone", {
-    // 	zoneName: "dev.gvatech-sso.com",
+    // 	zoneName: envValues.zoneName,
     // });
     const certificate = new acm.Certificate(this, "Certificate", {
       domainName: envValues.domainName,
@@ -55,7 +56,6 @@ export class NextJsStack extends Stack {
       vpc,
       allowAllOutbound: true,
     });
-    albSg.addIngressRule(ec2.Peer.ipv4("0.0.0.0/0"), ec2.Port.tcp(80));
     albSg.addIngressRule(ec2.Peer.ipv4("0.0.0.0/0"), ec2.Port.tcp(443));
 
     const containerSg = new ec2.SecurityGroup(this, "ContainerSg", { vpc });
@@ -86,11 +86,6 @@ export class NextJsStack extends Stack {
     });
 
     // ALBリスナー
-    alb.addListener("Listener", {
-      defaultTargetGroups: [containerTg],
-      open: true,
-      port: 80,
-    });
     alb.addListener("Listener-HTTPS", {
       defaultTargetGroups: [containerTg],
       open: true,
@@ -152,6 +147,18 @@ export class NextJsStack extends Stack {
     repository.grantPull(taskExecRole);
     logGroup.grantWrite(taskExecRole);
 
+    // SES設定
+    new ses.EmailIdentity(this, "Identity", {
+      identity: ses.Identity.publicHostedZone(hostedZone),
+      mailFromDomain: `bounce.${envValues.domainName}`,
+    });
+    new route53.TxtRecord(this, "DmarcRecord", {
+      zone: hostedZone,
+      recordName: `_dmarc.${envValues.domainName}`,
+      values: ["v=DMARC1; p=none"],
+      ttl: Duration.hours(1),
+    });
+
     // SSMパラメータの設定(ecspressoから参照する)
     new ssm.StringParameter(this, "TaskRoleParam", {
       parameterName: "/ecs/next-js-cdk/task-role",
@@ -209,30 +216,34 @@ export class NextJsStack extends Stack {
           Version: "2012-10-17",
           Statement: [
             {
-              Sid: "PushImageOnly",
+              Sid: "GitHubActionsPolicy",
               Effect: "Allow",
               Action: [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
                 "ecr:BatchCheckLayerAvailability",
                 "ecr:InitiateLayerUpload",
                 "ecr:UploadLayerPart",
                 "ecr:CompleteLayerUpload",
                 "ecr:PutImage",
-              ],
-              Resource: "*",
-            },
-            {
-              Sid: "GetSecrets",
-              Effect: "Allow",
-              Action: [
+                "ecr:GetAuthorizationToken",
+                "ecr:ListImages",
+                "application-autoscaling:Describe*",
+                "application-autoscaling:Register*",
+                "codedeploy:BatchGet*",
+                "codedeploy:CreateDeployment",
+                "codedeploy:List*",
+                "ecs:*",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "iam:GetRole",
+                "iam:PassRole",
+                "logs:GetLogEvents",
                 "secretsmanager:GetSecretValue",
                 "secretsmanager:DescribeSecret",
+                "servicediscovery:GetNamespace",
+                "ssm:GetParameter*",
+                "sts:AssumeRole",
               ],
-              Resource: "*",
-            },
-            {
-              Sid: "GetSSMParameters",
-              Effect: "Allow",
-              Action: ["ssm:GetParameter*"],
               Resource: "*",
             },
           ],
