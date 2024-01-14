@@ -28,6 +28,16 @@
           "hostPort": 3000,
           "protocol": "tcp"
         }
+      ],
+      "secrets": [
+        {
+          "name": "FROM_SECRETSMANAGER",
+          "valueFrom": "{{ secretsmanager_arn `portal` }}"
+        },
+        {
+          "name": "FOO_KEY",
+          "valueFrom": "{{ secretsmanager_arn `portal` }}:FOO_KEY::"
+        }
       ]
     }
   ],
