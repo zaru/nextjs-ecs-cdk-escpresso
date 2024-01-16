@@ -1,5 +1,7 @@
 # Next.jsをAWS CDKとecspressoでデプロイするサンプル
 
+![Next js_AWS_ECS構成図 (2)](https://github.com/zaru/nextjs-ecs-cdk-escpresso/assets/235650/41dd7bf8-4c54-4a17-bb4c-ef63a02ceca5)
+
 ## 概要
 
 - AWS CDKでECSクラスタなどを管理
@@ -39,7 +41,7 @@ $ npx cdk deploy -c environment=develop
 
 ### コンテナイメージを作成し、ECRにpushする
 
-- 運用時ではCIでビルドするが、初回は手動でビルドする
+- 運用時ではCIでビルドするが、初回は手動でビルドする（方がデバッグしやすいと思う）
 - ECRのリポジトリ名は自動で生成されるので、コンソールもしくはCLIで確認する
 
 ```bash
@@ -60,6 +62,8 @@ $ docker push $REPO_NAME/$IMAGE_NAME:latest
 ```
 
 ### ecspressoでECSサービスとタスクを作成しデプロイ
+
+- 初回でバッグ目的で、手動でecspressoでデプロイする
 
 ```bash
 $ ecspresso verify
