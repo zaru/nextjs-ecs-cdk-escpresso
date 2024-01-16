@@ -30,7 +30,7 @@ jobs:
         uses: aws-actions/aws-secretsmanager-get-secrets@v1
         with:
           secret-ids: |
-            FROM_SECRETSMANAGER,portal
+            FROM_SECRETSMANAGER,secret-key-name
           parse-json-secrets: false
 
       - name: Login to Amazon ECR

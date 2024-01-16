@@ -66,6 +66,3 @@ $ ecspresso verify
 $ ecspresso deploy
 ```
 
-## TODO
-
-- [ ] 秘匿情報をSSMに設定する

@@ -32,11 +32,11 @@
       "secrets": [
         {
           "name": "FROM_SECRETSMANAGER",
-          "valueFrom": "{{ secretsmanager_arn `portal` }}"
+          "valueFrom": "{{ secretsmanager_arn `secret-key-name` }}"
         },
         {
           "name": "FOO_KEY",
-          "valueFrom": "{{ secretsmanager_arn `portal` }}:FOO_KEY::"
+          "valueFrom": "{{ secretsmanager_arn `secret-key-name` }}:FOO_KEY::"
         }
       ]
     }

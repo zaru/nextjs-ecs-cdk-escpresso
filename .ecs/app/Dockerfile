@@ -18,6 +18,9 @@ RUN \
 
 # Rebuild the source code only when needed
 FROM base AS builder
+# Next.jsビルド時に環境変数が必要な場合、AWS Secrets Managerから取得したJSONを渡す
+ARG FROM_SECRETSMANAGER
+ENV FROM_SECRETSMANAGER ${FROM_SECRETSMANAGER}
 
 WORKDIR /app
 
