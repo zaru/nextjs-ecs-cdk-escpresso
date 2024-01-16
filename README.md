@@ -70,3 +70,8 @@ $ ecspresso verify
 $ ecspresso deploy
 ```
 
+## GitHub Actions
+
+以下のデプロイスクリプトを参照。
+
+- https://github.com/zaru/nextjs-ecs-cdk-escpresso/blob/main/.github/workflows/deploy.yml
